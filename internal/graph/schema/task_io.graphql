@@ -1,0 +1,30 @@
+##################################################
+# Query/Mutation Inputs
+##################################################
+
+input TaskCreateInput @goModel(model: "task.CreateInput") {
+  description: String!
+}
+
+input TaskUpdateInput @goModel(model: "task.UpdateInput") {
+  description: String
+  completed: Boolean
+}
+
+##################################################
+# Payloads
+##################################################
+
+type TaskCreatePayload {
+  task: Task
+  errors: [Error!]!
+}
+
+type TaskUpdatePayload {
+  task: Task
+  errors: [Error!]!
+}
+
+type TaskDeletePayload {
+  errors: [Error!]!
+}

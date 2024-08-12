@@ -1,0 +1,30 @@
+##################################################
+# Models
+##################################################
+
+type Task @goModel(model: "task.Task") {
+  id: ID!
+  description: String!
+  completed: Boolean!
+  userId: ID!
+}
+
+##################################################
+# Queries /  Mutations
+##################################################
+
+extend type Query {
+  "Returns the task with the specified id."
+  task(id: ID!): Task
+  "Returns all the saved tasks"
+  tasks: [Task!]!
+}
+
+extend type Mutation {
+  "Creates a new task"
+  taskCreate(input: TaskCreateInput!): TaskCreatePayload!
+  "Updates the task with the specified id"
+  taskUpdate(taskId: ID!, input: TaskUpdateInput!): TaskUpdatePayload!
+  "Deletes the task with the specified id"
+  taskDelete(taskId: ID!): TaskDeletePayload!
+}

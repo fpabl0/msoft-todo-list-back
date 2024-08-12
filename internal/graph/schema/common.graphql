@@ -1,0 +1,8 @@
+##################################################
+# Models
+##################################################
+
+type Error @goModel(model: "errs.Error") {
+  code: String!
+  message: String
+}

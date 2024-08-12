@@ -1,0 +1,32 @@
+##################################################
+# Models
+##################################################
+
+type User @goModel(model: "user.User") {
+  id: ID!
+  name: String!
+  email: String!
+  tasks: [Task!]! @goField(forceResolver: true)
+}
+
+##################################################
+# Queries /  Mutations
+##################################################
+
+extend type Query {
+  "Returns the current user based on the access token inside headers"
+  currentUser: User
+  "Returns the user with the specified id"
+  user(id: ID!): User
+  "Returns all the registered users"
+  users: [User!]!
+}
+
+extend type Mutation {
+  "Creates a new user"
+  userCreate(input: UserCreateInput!): UserCreatePayload!
+  "Returns a new user access token using user credentials"
+  userAccessTokenCreate(input: UserAccessTokenCreateInput!): UserAccessTokenCreatePayload!
+  "Renews a user access token."
+  userAccessTokenRenew(token: String!): UserAccessTokenRenewPayload!
+}

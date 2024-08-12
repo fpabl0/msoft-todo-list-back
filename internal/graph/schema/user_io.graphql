@@ -1,0 +1,33 @@
+##################################################
+# Query/Mutation Inputs
+##################################################
+
+input UserCreateInput @goModel(model: "user.CreateInput") {
+  name: String!
+  email: String!
+  password: String!
+}
+
+input UserAccessTokenCreateInput @goModel(model: "user.AccessTokenCreateInput") {
+  email: String!
+  password: String!
+}
+
+##################################################
+# Payloads
+##################################################
+
+type UserCreatePayload {
+  user: User
+  errors: [Error!]!
+}
+
+type UserAccessTokenCreatePayload {
+  userAccessToken: String
+  errors: [Error!]!
+}
+
+type UserAccessTokenRenewPayload {
+  userAccessToken: String
+  errors: [Error!]!
+}
