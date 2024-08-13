@@ -17,8 +17,7 @@ import (
 func (r *mutationResolver) UserCreate(ctx context.Context, input user.CreateInput) (*modelgen.UserCreatePayload, error) {
 	u, err := r.UsersService.CreateUser(&input)
 	if err != nil {
-		// TODO
-		return &modelgen.UserCreatePayload{}, nil
+		return &modelgen.UserCreatePayload{Error: makeAppError(err)}, nil
 	}
 	return &modelgen.UserCreatePayload{User: u}, nil
 }
@@ -27,8 +26,7 @@ func (r *mutationResolver) UserCreate(ctx context.Context, input user.CreateInpu
 func (r *mutationResolver) UserAccessTokenCreate(ctx context.Context, input user.AccessTokenCreateInput) (*modelgen.UserAccessTokenCreatePayload, error) {
 	token, err := r.UsersService.CreateAccessToken(&input)
 	if err != nil {
-		// TODO
-		return &modelgen.UserAccessTokenCreatePayload{}, nil
+		return &modelgen.UserAccessTokenCreatePayload{Error: makeAppError(err)}, nil
 	}
 	return &modelgen.UserAccessTokenCreatePayload{UserAccessToken: &token}, nil
 }
@@ -37,8 +35,7 @@ func (r *mutationResolver) UserAccessTokenCreate(ctx context.Context, input user
 func (r *mutationResolver) UserAccessTokenRenew(ctx context.Context, token string) (*modelgen.UserAccessTokenRenewPayload, error) {
 	newToken, err := r.UsersService.RenewAccessToken(token)
 	if err != nil {
-		// TODO
-		return &modelgen.UserAccessTokenRenewPayload{}, nil
+		return &modelgen.UserAccessTokenRenewPayload{Error: makeAppError(err)}, nil
 	}
 	return &modelgen.UserAccessTokenRenewPayload{UserAccessToken: &newToken}, nil
 }

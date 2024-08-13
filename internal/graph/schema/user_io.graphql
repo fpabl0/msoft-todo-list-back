@@ -19,15 +19,15 @@ input UserAccessTokenCreateInput @goModel(model: "user.AccessTokenCreateInput") 
 
 type UserCreatePayload {
   user: User
-  errors: [Error!]!
+  error: Error
 }
 
 type UserAccessTokenCreatePayload {
   userAccessToken: String
-  errors: [Error!]!
+  error: Error
 }
 
 type UserAccessTokenRenewPayload {
   userAccessToken: String
-  errors: [Error!]!
+  error: Error
 }

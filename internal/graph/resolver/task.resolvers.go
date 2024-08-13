@@ -6,10 +6,10 @@ package resolver
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/msoft-g1/todo-list-backend/internal/domain/task"
 	"github.com/msoft-g1/todo-list-backend/internal/domain/user"
+	"github.com/msoft-g1/todo-list-backend/internal/errs"
 	"github.com/msoft-g1/todo-list-backend/internal/graph/modelgen"
 )
 
@@ -17,15 +17,14 @@ import (
 func (r *mutationResolver) TaskCreate(ctx context.Context, input task.CreateInput) (*modelgen.TaskCreatePayload, error) {
 	authData := user.AuthForContext(ctx)
 	if authData == nil {
-		return nil, user.ErrAccessDenied
+		return &modelgen.TaskCreatePayload{Error: errs.New(errs.CodeAccessDenied, "Autenticación requerida")}, nil
 	}
 	taskCreated, err := r.TasksService.CreateTask(&task.CreateInput{
 		Description: input.Description,
 		UserID:      authData.UserID,
 	})
 	if err != nil {
-		// TODO
-		return &modelgen.TaskCreatePayload{}, nil
+		return &modelgen.TaskCreatePayload{Error: makeAppError(err)}, nil
 	}
 	return &modelgen.TaskCreatePayload{Task: taskCreated}, nil
 }
@@ -34,30 +33,29 @@ func (r *mutationResolver) TaskCreate(ctx context.Context, input task.CreateInpu
 func (r *mutationResolver) TaskUpdate(ctx context.Context, taskID uint, input task.UpdateInput) (*modelgen.TaskUpdatePayload, error) {
 	authData := user.AuthForContext(ctx)
 	if authData == nil {
-		return nil, user.ErrAccessDenied
+		return &modelgen.TaskUpdatePayload{Error: errs.New(errs.CodeAccessDenied, "Autenticación requerida")}, nil
 	}
-	t, err := r.TasksService.GetTaskByID(taskID)
-	if err != nil {
-		// TODO
-		return &modelgen.TaskUpdatePayload{}, nil
-	}
-	if t.UserID != authData.UserID {
-		return nil, user.ErrAccessDenied
-	}
-	updatedTask, err := r.TasksService.UpdateTask(taskID, &task.UpdateInput{
+	updatedTask, err := r.TasksService.UpdateTask(taskID, authData.UserID, &task.UpdateInput{
 		Description: input.Description,
 		Completed:   input.Completed,
 	})
 	if err != nil {
-		// TODO
-		return &modelgen.TaskUpdatePayload{}, nil
+		return &modelgen.TaskUpdatePayload{Error: makeAppError(err)}, nil
 	}
 	return &modelgen.TaskUpdatePayload{Task: updatedTask}, nil
 }
 
 // TaskDelete is the resolver for the taskDelete field.
 func (r *mutationResolver) TaskDelete(ctx context.Context, taskID uint) (*modelgen.TaskDeletePayload, error) {
-	panic(fmt.Errorf("not implemented: TaskDelete - taskDelete"))
+	authData := user.AuthForContext(ctx)
+	if authData == nil {
+		return &modelgen.TaskDeletePayload{Error: errs.New(errs.CodeAccessDenied, "Autenticación requerida")}, nil
+	}
+	err := r.TasksService.DeleteTask(taskID, authData.UserID)
+	if err != nil {
+		return &modelgen.TaskDeletePayload{Error: makeAppError(err)}, nil
+	}
+	return &modelgen.TaskDeletePayload{}, nil
 }
 
 // Task is the resolver for the task field.

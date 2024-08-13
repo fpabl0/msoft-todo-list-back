@@ -17,14 +17,14 @@ input TaskUpdateInput @goModel(model: "task.UpdateInput") {
 
 type TaskCreatePayload {
   task: Task
-  errors: [Error!]!
+  error: Error
 }
 
 type TaskUpdatePayload {
   task: Task
-  errors: [Error!]!
+  error: Error
 }
 
 type TaskDeletePayload {
-  errors: [Error!]!
+  error: Error
 }

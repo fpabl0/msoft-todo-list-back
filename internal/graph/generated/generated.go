@@ -15,6 +15,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/introspection"
 	"github.com/msoft-g1/todo-list-backend/internal/domain/task"
 	"github.com/msoft-g1/todo-list-backend/internal/domain/user"
+	"github.com/msoft-g1/todo-list-backend/internal/errs"
 	"github.com/msoft-g1/todo-list-backend/internal/graph/modelgen"
 	gqlparser "github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
@@ -40,6 +41,7 @@ type Config struct {
 }
 
 type ResolverRoot interface {
+	Error() ErrorResolver
 	Mutation() MutationResolver
 	Query() QueryResolver
 	User() UserResolver
@@ -49,6 +51,11 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
+	Error struct {
+		Code    func(childComplexity int) int
+		Message func(childComplexity int) int
+	}
+
 	Mutation struct {
 		EmptyMutate           func(childComplexity int) int
 		TaskCreate            func(childComplexity int, input task.CreateInput) int
@@ -76,15 +83,17 @@ type ComplexityRoot struct {
 	}
 
 	TaskCreatePayload struct {
-		Task func(childComplexity int) int
+		Error func(childComplexity int) int
+		Task  func(childComplexity int) int
 	}
 
 	TaskDeletePayload struct {
-		Ok func(childComplexity int) int
+		Error func(childComplexity int) int
 	}
 
 	TaskUpdatePayload struct {
-		Task func(childComplexity int) int
+		Error func(childComplexity int) int
+		Task  func(childComplexity int) int
 	}
 
 	User struct {
@@ -95,18 +104,24 @@ type ComplexityRoot struct {
 	}
 
 	UserAccessTokenCreatePayload struct {
+		Error           func(childComplexity int) int
 		UserAccessToken func(childComplexity int) int
 	}
 
 	UserAccessTokenRenewPayload struct {
+		Error           func(childComplexity int) int
 		UserAccessToken func(childComplexity int) int
 	}
 
 	UserCreatePayload struct {
-		User func(childComplexity int) int
+		Error func(childComplexity int) int
+		User  func(childComplexity int) int
 	}
 }
 
+type ErrorResolver interface {
+	Code(ctx context.Context, obj *errs.Error) (string, error)
+}
 type MutationResolver interface {
 	EmptyMutate(ctx context.Context) (*string, error)
 	TaskCreate(ctx context.Context, input task.CreateInput) (*modelgen.TaskCreatePayload, error)
@@ -146,6 +161,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 	ec := executionContext{nil, e, 0, 0, nil}
 	_ = ec
 	switch typeName + "." + field {
+
+	case "Error.code":
+		if e.complexity.Error.Code == nil {
+			break
+		}
+
+		return e.complexity.Error.Code(childComplexity), true
+
+	case "Error.message":
+		if e.complexity.Error.Message == nil {
+			break
+		}
+
+		return e.complexity.Error.Message(childComplexity), true
 
 	case "Mutation._emptyMutate":
 		if e.complexity.Mutation.EmptyMutate == nil {
@@ -306,6 +335,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Task.UserID(childComplexity), true
 
+	case "TaskCreatePayload.error":
+		if e.complexity.TaskCreatePayload.Error == nil {
+			break
+		}
+
+		return e.complexity.TaskCreatePayload.Error(childComplexity), true
+
 	case "TaskCreatePayload.task":
 		if e.complexity.TaskCreatePayload.Task == nil {
 			break
@@ -313,12 +349,19 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.TaskCreatePayload.Task(childComplexity), true
 
-	case "TaskDeletePayload.ok":
-		if e.complexity.TaskDeletePayload.Ok == nil {
+	case "TaskDeletePayload.error":
+		if e.complexity.TaskDeletePayload.Error == nil {
 			break
 		}
 
-		return e.complexity.TaskDeletePayload.Ok(childComplexity), true
+		return e.complexity.TaskDeletePayload.Error(childComplexity), true
+
+	case "TaskUpdatePayload.error":
+		if e.complexity.TaskUpdatePayload.Error == nil {
+			break
+		}
+
+		return e.complexity.TaskUpdatePayload.Error(childComplexity), true
 
 	case "TaskUpdatePayload.task":
 		if e.complexity.TaskUpdatePayload.Task == nil {
@@ -355,6 +398,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.User.Tasks(childComplexity), true
 
+	case "UserAccessTokenCreatePayload.error":
+		if e.complexity.UserAccessTokenCreatePayload.Error == nil {
+			break
+		}
+
+		return e.complexity.UserAccessTokenCreatePayload.Error(childComplexity), true
+
 	case "UserAccessTokenCreatePayload.userAccessToken":
 		if e.complexity.UserAccessTokenCreatePayload.UserAccessToken == nil {
 			break
@@ -362,12 +412,26 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.UserAccessTokenCreatePayload.UserAccessToken(childComplexity), true
 
+	case "UserAccessTokenRenewPayload.error":
+		if e.complexity.UserAccessTokenRenewPayload.Error == nil {
+			break
+		}
+
+		return e.complexity.UserAccessTokenRenewPayload.Error(childComplexity), true
+
 	case "UserAccessTokenRenewPayload.userAccessToken":
 		if e.complexity.UserAccessTokenRenewPayload.UserAccessToken == nil {
 			break
 		}
 
 		return e.complexity.UserAccessTokenRenewPayload.UserAccessToken(childComplexity), true
+
+	case "UserCreatePayload.error":
+		if e.complexity.UserCreatePayload.Error == nil {
+			break
+		}
+
+		return e.complexity.UserCreatePayload.Error(childComplexity), true
 
 	case "UserCreatePayload.user":
 		if e.complexity.UserCreatePayload.User == nil {
@@ -485,6 +549,15 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 }
 
 var sources = []*ast.Source{
+	{Name: "../schema/common.graphql", Input: `##################################################
+# Models
+##################################################
+
+type Error @goModel(model: "errs.Error") {
+  code: String!
+  message: String
+}
+`, BuiltIn: false},
 	{Name: "../schema/root.graphql", Input: `########################################
 # Directives
 ########################################
@@ -573,16 +646,16 @@ input TaskUpdateInput @goModel(model: "task.UpdateInput") {
 
 type TaskCreatePayload {
   task: Task
-  # TODO errors
+  error: Error
 }
 
 type TaskUpdatePayload {
   task: Task
-  # TODO errors
+  error: Error
 }
 
 type TaskDeletePayload {
-  ok: Boolean!
+  error: Error
 }
 `, BuiltIn: false},
 	{Name: "../schema/user.graphql", Input: `##################################################
@@ -639,17 +712,17 @@ input UserAccessTokenCreateInput @goModel(model: "user.AccessTokenCreateInput") 
 
 type UserCreatePayload {
   user: User
-  # TODO errors
+  error: Error
 }
 
 type UserAccessTokenCreatePayload {
   userAccessToken: String
-  # TODO errors
+  error: Error
 }
 
 type UserAccessTokenRenewPayload {
   userAccessToken: String
-  # TODO errors
+  error: Error
 }
 `, BuiltIn: false},
 }
@@ -841,6 +914,91 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 
 // region    **************************** field.gotpl *****************************
 
+func (ec *executionContext) _Error_code(ctx context.Context, field graphql.CollectedField, obj *errs.Error) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Error_code(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Error().Code(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Error_code(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Error",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Error_message(ctx context.Context, field graphql.CollectedField, obj *errs.Error) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Error_message(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Message, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalOString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Error_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Error",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation__emptyMutate(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation__emptyMutate(ctx, field)
 	if err != nil {
@@ -923,6 +1081,8 @@ func (ec *executionContext) fieldContext_Mutation_taskCreate(ctx context.Context
 			switch field.Name {
 			case "task":
 				return ec.fieldContext_TaskCreatePayload_task(ctx, field)
+			case "error":
+				return ec.fieldContext_TaskCreatePayload_error(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type TaskCreatePayload", field.Name)
 		},
@@ -982,6 +1142,8 @@ func (ec *executionContext) fieldContext_Mutation_taskUpdate(ctx context.Context
 			switch field.Name {
 			case "task":
 				return ec.fieldContext_TaskUpdatePayload_task(ctx, field)
+			case "error":
+				return ec.fieldContext_TaskUpdatePayload_error(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type TaskUpdatePayload", field.Name)
 		},
@@ -1039,8 +1201,8 @@ func (ec *executionContext) fieldContext_Mutation_taskDelete(ctx context.Context
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "ok":
-				return ec.fieldContext_TaskDeletePayload_ok(ctx, field)
+			case "error":
+				return ec.fieldContext_TaskDeletePayload_error(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type TaskDeletePayload", field.Name)
 		},
@@ -1100,6 +1262,8 @@ func (ec *executionContext) fieldContext_Mutation_userCreate(ctx context.Context
 			switch field.Name {
 			case "user":
 				return ec.fieldContext_UserCreatePayload_user(ctx, field)
+			case "error":
+				return ec.fieldContext_UserCreatePayload_error(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type UserCreatePayload", field.Name)
 		},
@@ -1159,6 +1323,8 @@ func (ec *executionContext) fieldContext_Mutation_userAccessTokenCreate(ctx cont
 			switch field.Name {
 			case "userAccessToken":
 				return ec.fieldContext_UserAccessTokenCreatePayload_userAccessToken(ctx, field)
+			case "error":
+				return ec.fieldContext_UserAccessTokenCreatePayload_error(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type UserAccessTokenCreatePayload", field.Name)
 		},
@@ -1218,6 +1384,8 @@ func (ec *executionContext) fieldContext_Mutation_userAccessTokenRenew(ctx conte
 			switch field.Name {
 			case "userAccessToken":
 				return ec.fieldContext_UserAccessTokenRenewPayload_userAccessToken(ctx, field)
+			case "error":
+				return ec.fieldContext_UserAccessTokenRenewPayload_error(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type UserAccessTokenRenewPayload", field.Name)
 		},
@@ -1916,8 +2084,8 @@ func (ec *executionContext) fieldContext_TaskCreatePayload_task(_ context.Contex
 	return fc, nil
 }
 
-func (ec *executionContext) _TaskDeletePayload_ok(ctx context.Context, field graphql.CollectedField, obj *modelgen.TaskDeletePayload) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_TaskDeletePayload_ok(ctx, field)
+func (ec *executionContext) _TaskCreatePayload_error(ctx context.Context, field graphql.CollectedField, obj *modelgen.TaskCreatePayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_TaskCreatePayload_error(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -1930,31 +2098,81 @@ func (ec *executionContext) _TaskDeletePayload_ok(ctx context.Context, field gra
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Ok, nil
+		return obj.Error, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
 		return graphql.Null
 	}
 	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
-	res := resTmp.(bool)
+	res := resTmp.(*errs.Error)
 	fc.Result = res
-	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+	return ec.marshalOError2ᚖgithubᚗcomᚋmsoftᚑg1ᚋtodoᚑlistᚑbackendᚋinternalᚋerrsᚐError(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_TaskDeletePayload_ok(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_TaskCreatePayload_error(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TaskCreatePayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "code":
+				return ec.fieldContext_Error_code(ctx, field)
+			case "message":
+				return ec.fieldContext_Error_message(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Error", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TaskDeletePayload_error(ctx context.Context, field graphql.CollectedField, obj *modelgen.TaskDeletePayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_TaskDeletePayload_error(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Error, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*errs.Error)
+	fc.Result = res
+	return ec.marshalOError2ᚖgithubᚗcomᚋmsoftᚑg1ᚋtodoᚑlistᚑbackendᚋinternalᚋerrsᚐError(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_TaskDeletePayload_error(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "TaskDeletePayload",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
+			switch field.Name {
+			case "code":
+				return ec.fieldContext_Error_code(ctx, field)
+			case "message":
+				return ec.fieldContext_Error_message(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Error", field.Name)
 		},
 	}
 	return fc, nil
@@ -2006,6 +2224,53 @@ func (ec *executionContext) fieldContext_TaskUpdatePayload_task(_ context.Contex
 				return ec.fieldContext_Task_userId(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Task", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TaskUpdatePayload_error(ctx context.Context, field graphql.CollectedField, obj *modelgen.TaskUpdatePayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_TaskUpdatePayload_error(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Error, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*errs.Error)
+	fc.Result = res
+	return ec.marshalOError2ᚖgithubᚗcomᚋmsoftᚑg1ᚋtodoᚑlistᚑbackendᚋinternalᚋerrsᚐError(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_TaskUpdatePayload_error(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TaskUpdatePayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "code":
+				return ec.fieldContext_Error_code(ctx, field)
+			case "message":
+				return ec.fieldContext_Error_message(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Error", field.Name)
 		},
 	}
 	return fc, nil
@@ -2238,6 +2503,53 @@ func (ec *executionContext) fieldContext_UserAccessTokenCreatePayload_userAccess
 	return fc, nil
 }
 
+func (ec *executionContext) _UserAccessTokenCreatePayload_error(ctx context.Context, field graphql.CollectedField, obj *modelgen.UserAccessTokenCreatePayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_UserAccessTokenCreatePayload_error(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Error, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*errs.Error)
+	fc.Result = res
+	return ec.marshalOError2ᚖgithubᚗcomᚋmsoftᚑg1ᚋtodoᚑlistᚑbackendᚋinternalᚋerrsᚐError(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_UserAccessTokenCreatePayload_error(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UserAccessTokenCreatePayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "code":
+				return ec.fieldContext_Error_code(ctx, field)
+			case "message":
+				return ec.fieldContext_Error_message(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Error", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _UserAccessTokenRenewPayload_userAccessToken(ctx context.Context, field graphql.CollectedField, obj *modelgen.UserAccessTokenRenewPayload) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_UserAccessTokenRenewPayload_userAccessToken(ctx, field)
 	if err != nil {
@@ -2274,6 +2586,53 @@ func (ec *executionContext) fieldContext_UserAccessTokenRenewPayload_userAccessT
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UserAccessTokenRenewPayload_error(ctx context.Context, field graphql.CollectedField, obj *modelgen.UserAccessTokenRenewPayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_UserAccessTokenRenewPayload_error(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Error, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*errs.Error)
+	fc.Result = res
+	return ec.marshalOError2ᚖgithubᚗcomᚋmsoftᚑg1ᚋtodoᚑlistᚑbackendᚋinternalᚋerrsᚐError(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_UserAccessTokenRenewPayload_error(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UserAccessTokenRenewPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "code":
+				return ec.fieldContext_Error_code(ctx, field)
+			case "message":
+				return ec.fieldContext_Error_message(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Error", field.Name)
 		},
 	}
 	return fc, nil
@@ -2325,6 +2684,53 @@ func (ec *executionContext) fieldContext_UserCreatePayload_user(_ context.Contex
 				return ec.fieldContext_User_tasks(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UserCreatePayload_error(ctx context.Context, field graphql.CollectedField, obj *modelgen.UserCreatePayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_UserCreatePayload_error(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Error, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*errs.Error)
+	fc.Result = res
+	return ec.marshalOError2ᚖgithubᚗcomᚋmsoftᚑg1ᚋtodoᚑlistᚑbackendᚋinternalᚋerrsᚐError(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_UserCreatePayload_error(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UserCreatePayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "code":
+				return ec.fieldContext_Error_code(ctx, field)
+			case "message":
+				return ec.fieldContext_Error_message(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Error", field.Name)
 		},
 	}
 	return fc, nil
@@ -4247,6 +4653,78 @@ func (ec *executionContext) unmarshalInputUserCreateInput(ctx context.Context, o
 
 // region    **************************** object.gotpl ****************************
 
+var errorImplementors = []string{"Error"}
+
+func (ec *executionContext) _Error(ctx context.Context, sel ast.SelectionSet, obj *errs.Error) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, errorImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Error")
+		case "code":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Error_code(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "message":
+			out.Values[i] = ec._Error_message(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var mutationImplementors = []string{"Mutation"}
 
 func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -4572,6 +5050,8 @@ func (ec *executionContext) _TaskCreatePayload(ctx context.Context, sel ast.Sele
 			out.Values[i] = graphql.MarshalString("TaskCreatePayload")
 		case "task":
 			out.Values[i] = ec._TaskCreatePayload_task(ctx, field, obj)
+		case "error":
+			out.Values[i] = ec._TaskCreatePayload_error(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -4606,11 +5086,8 @@ func (ec *executionContext) _TaskDeletePayload(ctx context.Context, sel ast.Sele
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("TaskDeletePayload")
-		case "ok":
-			out.Values[i] = ec._TaskDeletePayload_ok(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
+		case "error":
+			out.Values[i] = ec._TaskDeletePayload_error(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -4647,6 +5124,8 @@ func (ec *executionContext) _TaskUpdatePayload(ctx context.Context, sel ast.Sele
 			out.Values[i] = graphql.MarshalString("TaskUpdatePayload")
 		case "task":
 			out.Values[i] = ec._TaskUpdatePayload_task(ctx, field, obj)
+		case "error":
+			out.Values[i] = ec._TaskUpdatePayload_error(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -4768,6 +5247,8 @@ func (ec *executionContext) _UserAccessTokenCreatePayload(ctx context.Context, s
 			out.Values[i] = graphql.MarshalString("UserAccessTokenCreatePayload")
 		case "userAccessToken":
 			out.Values[i] = ec._UserAccessTokenCreatePayload_userAccessToken(ctx, field, obj)
+		case "error":
+			out.Values[i] = ec._UserAccessTokenCreatePayload_error(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -4804,6 +5285,8 @@ func (ec *executionContext) _UserAccessTokenRenewPayload(ctx context.Context, se
 			out.Values[i] = graphql.MarshalString("UserAccessTokenRenewPayload")
 		case "userAccessToken":
 			out.Values[i] = ec._UserAccessTokenRenewPayload_userAccessToken(ctx, field, obj)
+		case "error":
+			out.Values[i] = ec._UserAccessTokenRenewPayload_error(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -4840,6 +5323,8 @@ func (ec *executionContext) _UserCreatePayload(ctx context.Context, sel ast.Sele
 			out.Values[i] = graphql.MarshalString("UserCreatePayload")
 		case "user":
 			out.Values[i] = ec._UserCreatePayload_user(ctx, field, obj)
+		case "error":
+			out.Values[i] = ec._UserCreatePayload_error(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -5744,6 +6229,13 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	}
 	res := graphql.MarshalBoolean(*v)
 	return res
+}
+
+func (ec *executionContext) marshalOError2ᚖgithubᚗcomᚋmsoftᚑg1ᚋtodoᚑlistᚑbackendᚋinternalᚋerrsᚐError(ctx context.Context, sel ast.SelectionSet, v *errs.Error) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Error(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOString2string(ctx context.Context, v interface{}) (string, error) {

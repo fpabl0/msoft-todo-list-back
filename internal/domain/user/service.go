@@ -1,12 +1,12 @@
 package user
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/msoft-g1/todo-list-backend/internal/errs"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -24,6 +24,7 @@ func NewService(repo Repository) *Service {
 
 // CreateUser creates a new user.
 func (s *Service) CreateUser(input *CreateInput) (*User, error) {
+	// TODO check min password len
 	hashBytes, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
@@ -55,9 +56,12 @@ func (s *Service) CreateAccessToken(input *AccessTokenCreateInput) (string, erro
 	if err != nil {
 		return "", err
 	}
+	if u == nil {
+		return "", errs.New(errs.CodeNotFound, "No existe el usuario con el correo especificado")
+	}
 	err = bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(input.Password))
 	if err != nil {
-		return "", err
+		return "", errs.New(errs.CodeInvalidCreds, "Credenciales inválidas")
 	}
 	return s.makeAccessToken(&AccessTokenData{UserID: u.ID, UserName: u.Name})
 }
@@ -80,11 +84,11 @@ func (s *Service) ValidateAccessToken(token string) (*AccessTokenData, error) {
 		return []byte(secretKey), nil
 	}, jwt.WithExpirationRequired())
 	if err != nil {
-		return nil, err
+		return nil, errs.NewWithError(errs.CodeInvalidToken, err)
 	}
 	claims, ok := tk.Claims.(jwt.MapClaims)
 	if !ok {
-		return nil, errors.New("Unexpected claims")
+		return nil, errs.New(errs.CodeInvalidToken, "Claims no esperados")
 	}
 	var data AccessTokenData
 	n, _ := strconv.Atoi(claims["sub"].(string))

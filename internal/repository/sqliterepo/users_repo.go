@@ -5,6 +5,7 @@ import (
 
 	"github.com/msoft-g1/todo-list-backend/internal/domain/user"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var _ user.Repository = (*usersRepo)(nil)
@@ -21,11 +22,12 @@ func NewUsersRepo(db *gorm.DB) user.Repository {
 }
 
 func (r *usersRepo) Create(u *user.User) (*user.User, error) {
-	err := r.db.Create(u).Error
+	ret := *u
+	err := r.db.Create(&ret).Error
 	if err != nil {
 		return nil, err
 	}
-	return u, nil
+	return &ret, nil
 }
 
 func (r *usersRepo) FindByID(id uint) (*user.User, error) {
@@ -62,11 +64,12 @@ func (r *usersRepo) FindAll() ([]*user.User, error) {
 }
 
 func (r *usersRepo) Update(u *user.User) (*user.User, error) {
-	err := r.db.Model(&u).Updates(u).Error
+	ret := user.User{ID: u.ID}
+	err := r.db.Model(&ret).Clauses(clause.Returning{}).Updates(u).Error
 	if err != nil {
 		return nil, err
 	}
-	return u, nil
+	return &ret, nil
 }
 
 func (r *usersRepo) Delete(id uint) error {
