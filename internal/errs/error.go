@@ -4,8 +4,8 @@ import "fmt"
 
 // Error defines an application error
 type Error struct {
-	Code    Code
-	Message string
+	Code    Code   `json:"code,omitempty"`
+	Message string `json:"message,omitempty"`
 }
 
 // Error implements Error interface

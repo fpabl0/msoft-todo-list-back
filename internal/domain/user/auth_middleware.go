@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/msoft-g1/todo-list-backend/internal/errs"
 )
 
 var userCtxKey = &contextKey{"user"}
@@ -24,12 +25,12 @@ func AuthMiddleware(userService *Service) gin.HandlerFunc {
 		}
 		authHeaderParts := strings.Fields(authHeader)
 		if len(authHeaderParts) != 2 || strings.ToLower(authHeaderParts[0]) != "bearer" {
-			c.String(http.StatusUnauthorized, ErrInvalidTokenFmt.Error())
+			c.AbortWithStatusJSON(http.StatusUnauthorized, errs.New(errs.CodeInvalidTokenFormat, "Formato de token inválido"))
 			return
 		}
 		data, err := userService.ValidateAccessToken(authHeaderParts[1])
 		if err != nil {
-			c.String(http.StatusUnauthorized, ErrInvalidToken.Error())
+			c.AbortWithStatusJSON(http.StatusUnauthorized, errs.New(errs.CodeInvalidToken, "Token inválido"))
 			return
 		}
 		// --- Pass the token data object through the request context

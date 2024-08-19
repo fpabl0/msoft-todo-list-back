@@ -10,5 +10,6 @@ const (
 	CodeAccessDenied       Code = "ACCESS_DENIED"
 	CodeNotFound           Code = "NOT_FOUND"
 	CodeInvalidCreds       Code = "INVALID_CREDENTIALS"
+	CodeAlreadyExists      Code = "ALREADY_EXISTS"
 	CodeUnexpected         Code = "UNEXPECTED_ERROR"
 )
