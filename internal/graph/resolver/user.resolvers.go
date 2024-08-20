@@ -24,11 +24,14 @@ func (r *mutationResolver) UserCreate(ctx context.Context, input user.CreateInpu
 
 // UserAccessTokenCreate is the resolver for the userAccessTokenCreate field.
 func (r *mutationResolver) UserAccessTokenCreate(ctx context.Context, input user.AccessTokenCreateInput) (*modelgen.UserAccessTokenCreatePayload, error) {
-	token, err := r.UsersService.CreateAccessToken(&input)
+	resp, err := r.UsersService.CreateAccessToken(&input)
 	if err != nil {
 		return &modelgen.UserAccessTokenCreatePayload{Error: makeAppError(err)}, nil
 	}
-	return &modelgen.UserAccessTokenCreatePayload{UserAccessToken: &token}, nil
+	return &modelgen.UserAccessTokenCreatePayload{
+		User:            resp.User,
+		UserAccessToken: &resp.AccessToken,
+	}, nil
 }
 
 // UserAccessTokenRenew is the resolver for the userAccessTokenRenew field.

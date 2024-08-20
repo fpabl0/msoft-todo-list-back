@@ -105,6 +105,7 @@ type ComplexityRoot struct {
 
 	UserAccessTokenCreatePayload struct {
 		Error           func(childComplexity int) int
+		User            func(childComplexity int) int
 		UserAccessToken func(childComplexity int) int
 	}
 
@@ -404,6 +405,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.UserAccessTokenCreatePayload.Error(childComplexity), true
+
+	case "UserAccessTokenCreatePayload.user":
+		if e.complexity.UserAccessTokenCreatePayload.User == nil {
+			break
+		}
+
+		return e.complexity.UserAccessTokenCreatePayload.User(childComplexity), true
 
 	case "UserAccessTokenCreatePayload.userAccessToken":
 		if e.complexity.UserAccessTokenCreatePayload.UserAccessToken == nil {
@@ -716,6 +724,7 @@ type UserCreatePayload {
 }
 
 type UserAccessTokenCreatePayload {
+  user: User
   userAccessToken: String
   error: Error
 }
@@ -1321,6 +1330,8 @@ func (ec *executionContext) fieldContext_Mutation_userAccessTokenCreate(ctx cont
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "user":
+				return ec.fieldContext_UserAccessTokenCreatePayload_user(ctx, field)
 			case "userAccessToken":
 				return ec.fieldContext_UserAccessTokenCreatePayload_userAccessToken(ctx, field)
 			case "error":
@@ -2457,6 +2468,57 @@ func (ec *executionContext) fieldContext_User_tasks(_ context.Context, field gra
 				return ec.fieldContext_Task_userId(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Task", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UserAccessTokenCreatePayload_user(ctx context.Context, field graphql.CollectedField, obj *modelgen.UserAccessTokenCreatePayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_UserAccessTokenCreatePayload_user(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.User, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*user.User)
+	fc.Result = res
+	return ec.marshalOUser2ᚖgithubᚗcomᚋmsoftᚑg1ᚋtodoᚑlistᚑbackendᚋinternalᚋdomainᚋuserᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_UserAccessTokenCreatePayload_user(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UserAccessTokenCreatePayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "name":
+				return ec.fieldContext_User_name(ctx, field)
+			case "email":
+				return ec.fieldContext_User_email(ctx, field)
+			case "tasks":
+				return ec.fieldContext_User_tasks(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
 	}
 	return fc, nil
@@ -5245,6 +5307,8 @@ func (ec *executionContext) _UserAccessTokenCreatePayload(ctx context.Context, s
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("UserAccessTokenCreatePayload")
+		case "user":
+			out.Values[i] = ec._UserAccessTokenCreatePayload_user(ctx, field, obj)
 		case "userAccessToken":
 			out.Values[i] = ec._UserAccessTokenCreatePayload_userAccessToken(ctx, field, obj)
 		case "error":

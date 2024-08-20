@@ -31,6 +31,7 @@ type TaskUpdatePayload struct {
 }
 
 type UserAccessTokenCreatePayload struct {
+	User            *user.User  `json:"user,omitempty"`
 	UserAccessToken *string     `json:"userAccessToken,omitempty"`
 	Error           *errs.Error `json:"error,omitempty"`
 }

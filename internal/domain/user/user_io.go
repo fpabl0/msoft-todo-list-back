@@ -12,3 +12,8 @@ type AccessTokenCreateInput struct {
 	Email    string
 	Password string
 }
+
+type AccessTokenCreateOutput struct {
+	User        *User
+	AccessToken string
+}

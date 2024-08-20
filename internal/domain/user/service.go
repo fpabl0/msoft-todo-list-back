@@ -41,6 +41,11 @@ func (s *Service) GetUserByID(id uint) (*User, error) {
 	return s.repo.FindByID(id)
 }
 
+// GetUserByEmail returns the user with the specified email.
+func (s *Service) GetUserByEmail(email string) (*User, error) {
+	return s.repo.FindbyEmail(email)
+}
+
 // GetAllUsers returns all the users.
 func (s *Service) GetAllUsers() ([]*User, error) {
 	return s.repo.FindAll()
@@ -51,19 +56,26 @@ func (s *Service) GetAllUsers() ([]*User, error) {
 // ===============================================================
 
 // CreateAccessToken creates access token.
-func (s *Service) CreateAccessToken(input *AccessTokenCreateInput) (string, error) {
+func (s *Service) CreateAccessToken(input *AccessTokenCreateInput) (*AccessTokenCreateOutput, error) {
 	u, err := s.repo.FindbyEmail(input.Email)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if u == nil {
-		return "", errs.New(errs.CodeNotFound, "No existe el usuario con el correo especificado")
+		return nil, errs.New(errs.CodeNotFound, "No existe el usuario con el correo especificado")
 	}
 	err = bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(input.Password))
 	if err != nil {
-		return "", errs.New(errs.CodeInvalidCreds, "Credenciales inválidas")
+		return nil, errs.New(errs.CodeInvalidCreds, "Credenciales inválidas")
 	}
-	return s.makeAccessToken(&AccessTokenData{UserID: u.ID, UserName: u.Name})
+	tk, err := s.makeAccessToken(&AccessTokenData{UserID: u.ID, UserName: u.Name})
+	if err != nil {
+		return nil, err
+	}
+	return &AccessTokenCreateOutput{
+		User:        u,
+		AccessToken: tk,
+	}, nil
 }
 
 // RenewAccessToken renews access token.
